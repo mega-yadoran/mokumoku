@@ -31,8 +31,9 @@ const postChat = async (client, msg, button = null) => {
         functions.logger.error(error);
     }
 };
+
+// スラッシュコマンド - 作業中かどうかに応じてモーダルを開く
 app.command('/mokumoku', async ({ ack, body, client }) => {
-    // コマンドのリクエストを確認
     await ack();
 
     const userId = body.user_id;

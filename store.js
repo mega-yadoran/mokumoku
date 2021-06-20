@@ -1,14 +1,15 @@
-const moment = require('moment');
-const admin = require('firebase-admin')
-admin.initializeApp()
+const dayjs = require('dayjs');
+const admin = require('firebase-admin');
+admin.initializeApp();
 
 const getCurrentTime = () => {
-    return moment().format('YYYY-MM-DD HH:mm:ss');
+    return dayjs().format('YYYY-MM-DD HH:mm:ss');
 }
 
 const formatEstimatedEndTime = (estimatedEndTime, isTimestamp = false) => {
-    let tmp = moment(estimatedEndTime, 'HH:mm');
-    result = moment().diff(tmp) < 0
+    const split = estimatedEndTime.split(':')
+    const tmp = dayjs().hour(split[0]).minute(split[1]).second(0);
+    const result = dayjs().diff(tmp) < 0
         ? tmp
         : tmp.add(1, 'd');
     return isTimestamp ? result.unix() : result.format('YYYY-MM-DD HH:mm:ss');
@@ -36,18 +37,18 @@ exports.startWork = async (userId, goal, estimatedEndTime) => {
 exports.endWork = async (userId) => {
     const snapshot = await this.getCurrentWorkSnapshot(userId);
     const workRef = snapshot.docs[0].ref;
-    await workRef.update({ real_end_time: getCurrentTime() })
+    await workRef.update({ real_end_time: getCurrentTime() });
 }
 
 exports.extendWorkTime = async (userId, minutes) => {
     const snapshot = await this.getCurrentWorkSnapshot(userId);
     const workRef = snapshot.docs[0].ref;
     const estimatedEndTime = snapshot.docs[0].data().estimated_end_time;
-    const newEstimatedEndTime = moment(estimatedEndTime, 'YYYY-MM-DD HH:mm:ss').add(minutes, 'minutes');
+    const newEstimatedEndTime = dayjs(estimatedEndTime, 'YYYY-MM-DD HH:mm:ss').add(minutes, 'minutes');
     await workRef.update({
         estimated_end_time: newEstimatedEndTime.format('YYYY-MM-DD HH:mm:ss'),
-        estimated_end_timestamp: newEstimatedEndTime.unix(),
-    })
+        estimated_end_timestamp: newEstimatedEndTime.unix()
+    });
 }
 
 exports.getCurrentWorkSnapshot = async (userId) => {
@@ -61,7 +62,7 @@ exports.getCurrentWorkSnapshot = async (userId) => {
 exports.getUnreportedWorks = async (minutes, finishFlag = false) => {
     const snapshot = await admin.firestore().collection('works')
         .where('real_end_time', '==', null)
-        .where('estimated_end_timestamp', '<', moment().subtract(minutes, 'minutes').unix())
+        .where('estimated_end_timestamp', '<', dayjs().subtract(minutes, 'minutes').unix())
         .get();
     const result = [];
 
