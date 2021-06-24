@@ -1,19 +1,24 @@
-const functions = require('firebase-functions');
-const config = functions.config();
-
-const { App, ExpressReceiver } = require('@slack/bolt');
+const { App } = require('@slack/bolt');
+const dayjs = require('dayjs');
 const store = require('./store');
 const modal = require('./block');
+const log4js = require('log4js')
 
-const expressReceiver = new ExpressReceiver({
-    signingSecret: config.slack.signing_secret,
-    endpoints: '/events',
-    processBeforeResponse: true
+// ログ設定
+log4js.configure({
+    appenders: {
+        system: { type: 'file', filename: `error-${dayjs().format('YYYY-MM-DD')}.log` }
+    },
+    categories: {
+        default: { appenders: ['system'], level: 'error' },
+    }
 });
+const logger = log4js.getLogger('system');
+
+// Slackアプリ設定
 const app = new App({
-    receiver: expressReceiver,
-    token: config.slack.bot_token,
-    processBeforeResponse: true
+    token: process.env.SLACK_BOT_TOKEN,
+    signingSecret: process.env.SLACK_SIGNING_SECRET
 });
 
 // チャンネルにメッセージを投稿する
@@ -28,7 +33,7 @@ const postChat = async (client, msg, button = null) => {
         }
         await client.chat.postMessage(message);
     } catch (error) {
-        functions.logger.error(error);
+        logger.error(error);
     }
 };
 
@@ -58,12 +63,12 @@ app.command('/mokumoku', async ({ ack, body, client }) => {
                 });
             }
         } catch (error) {
-            functions.logger.error("モーダルのOPENに失敗しました");
-            functions.logger.error(error);
+            logger.error("モーダルのOPENに失敗しました");
+            logger.error(error);
         }
     } catch (error) {
-        functions.logger.error("ユーザーの作業確認に失敗しました");
-        functions.logger.error(error);
+        logger.error("ユーザーの作業確認に失敗しました");
+        logger.error(error);
     }
 });
 
@@ -83,8 +88,8 @@ app.view('start', async ({ ack, body, view, client }) => {
         const msg = `<@${userId}>さんが作業を開始しました。\n今日の目標：${goal} \n終了予定時刻：${estimatedEndTime}`;
         await postChat(client, msg);
     } catch (error) {
-        functions.logger.error("作業開始処理に失敗しました");
-        functions.logger.error(error);
+        logger.error("作業開始処理に失敗しました");
+        logger.error(error);
     }
 });
 
@@ -104,8 +109,8 @@ app.view('end', async ({ ack, body, client }) => {
         const msg = `<@${userId}>さんが作業を終了しました。お疲れさまでした！`;
         await postChat(client, msg);
     } catch (error) {
-        functions.logger.error("作業終了処理に失敗しました");
-        functions.logger.error(error);
+        logger.error("作業終了処理に失敗しました");
+        logger.error(error);
     }
 });
 
@@ -126,8 +131,8 @@ app.action({ callback_id: 'finish_button' }, async ({ ack, body, client }) => {
                 const msg = `<@${userId}>さんが作業を終了しました。お疲れさまでした！`;
                 await postChat(client, msg);
             } catch (error) {
-                functions.logger.error("作業終了処理に失敗しました");
-                functions.logger.error(error);
+                logger.error("作業終了処理に失敗しました");
+                logger.error(error);
             }
             break;
         case 'extend-one-hour':
@@ -141,33 +146,14 @@ app.action({ callback_id: 'finish_button' }, async ({ ack, body, client }) => {
                 const msg = `<@${userId}> 終了予定時間を1時間延長しました`;
                 await postChat(client, msg);
             } catch (error) {
-                functions.logger.error("終了予定時間延長に失敗しました");
-                functions.logger.error(error);
+                logger.error("終了予定時間延長に失敗しました");
+                logger.error(error);
             }
             break;
     }
 });
 
-// 終了報告をしていない作業の監視
-exports.checkAlert = functions.region('asia-northeast1').pubsub.schedule('every 5 minutes').onRun(async (context) => {
-    // 終了未報告の作業を作業時間0で終了してユーザーにメッセージを送る
-    const worksForFinish = await store.getUnreportedWorks(60, true);
-    worksForFinish.forEach(async work => {
-        // ユーザーに対してメッセージを送信する
-        const msg = `<@${work.user_id}> 作業終了予定時間から1時間が経過したため、作業時間0として記録しました。\n`
-            + '(正しい時間を再記録したい場合は管理者に問い合わせてください)';
-        await postChat(app.client, msg);
-    });
-
-    // 終了未報告のユーザーにアラートを送る
-    const worksForAlert = await store.getUnreportedWorks(30);
-    worksForAlert.forEach(async work => {
-        // ユーザーに対してメッセージを送信する
-        const msg = `<@${work.user_id}> 作業終了予定時間を過ぎています。既に作業を終了している場合は終了報告をしてください。\n`
-            + '1時間経過するまでに終了報告がなければ作業時間0として記録されます。';
-
-        await postChat(app.client, msg, modal.FINISH_BUTTON);
-    });
-});
-
-exports.slack = functions.region('asia-northeast1').https.onRequest(expressReceiver.app);
+// 
+(async () => {
+    await app.start(process.env.PORT || 3000);
+})();
