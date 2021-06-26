@@ -1,6 +1,9 @@
 const dayjs = require('dayjs');
 const admin = require('firebase-admin');
-admin.initializeApp();
+const serviceAccount = require('./serviceAccountKey.json');
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+});
 
 const getCurrentTime = () => {
     return dayjs().format('YYYY-MM-DD HH:mm:ss');

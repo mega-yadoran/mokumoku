@@ -1,3 +1,4 @@
+require('dotenv').config();
 const { App } = require('@slack/bolt');
 const dayjs = require('dayjs');
 const store = require('./store');
@@ -10,7 +11,7 @@ log4js.configure({
         system: { type: 'file', filename: `error-${dayjs().format('YYYY-MM-DD')}.log` }
     },
     categories: {
-        default: { appenders: ['system'], level: 'error' },
+        default: { appenders: ['system'], level: 'info' },
     }
 });
 const logger = log4js.getLogger('system');
@@ -25,7 +26,7 @@ const app = new App({
 const postChat = async (client, msg, button = null) => {
     try {
         const message = {
-            channel: config.slack.target_channel_id,
+            channel: process.env.TARGET_CHANNEL_ID,
             text: msg
         };
         if (button) {
@@ -39,6 +40,8 @@ const postChat = async (client, msg, button = null) => {
 
 // スラッシュコマンド - 作業中かどうかに応じてモーダルを開く
 app.command('/mokumoku', async ({ ack, body, client }) => {
+    logger.info('mokkumoku slash command called.');
+
     await ack();
 
     const userId = body.user_id;
@@ -50,13 +53,13 @@ app.command('/mokumoku', async ({ ack, body, client }) => {
         // モーダルを開く
         try {
             if (isWorking) {
-                // 作業終了モーダル
+                // 作業中の場合、作業終了モーダルを開く
                 await client.views.open({
                     trigger_id: body.trigger_id,
                     view: modal.END_MODAL
                 });
             } else {
-                // 作業開始モーダル
+                // 作業中でない場合、作業開始モーダルを開く
                 await client.views.open({
                     trigger_id: body.trigger_id,
                     view: modal.START_MODAL
@@ -115,13 +118,13 @@ app.view('end', async ({ ack, body, client }) => {
 });
 
 app.action({ callback_id: 'finish_button' }, async ({ ack, body, client }) => {
-    // モーダルでのデータ送信イベントを確認
     const userId = body.user.id;
     const action = body.actions[0].value;
 
     switch (action) {
         case 'finish':
             try {
+                // メッセージ内容内容上書き
                 await ack({ text: '終了報告を受け付けました' });
 
                 // 終了時間を書き込み
@@ -137,9 +140,10 @@ app.action({ callback_id: 'finish_button' }, async ({ ack, body, client }) => {
             break;
         case 'extend-one-hour':
             try {
+                // メッセージ内容内容上書き
                 await ack({ text: '延長を受け付けました' });
 
-                // 終了時間を書き込み
+                // 終了時間を1時間伸ばす
                 store.extendWorkTime(userId, 60);
 
                 // ユーザーに対してメッセージを送信する
@@ -153,7 +157,8 @@ app.action({ callback_id: 'finish_button' }, async ({ ack, body, client }) => {
     }
 });
 
-// 
+// サーバーを立ち上げる
 (async () => {
-    await app.start(process.env.PORT || 3000);
+    const server = await app.start(process.env.PORT || 3000);
+    logger.info(`Bolt app is running! PORT: ${server.address().port}`);
 })();
