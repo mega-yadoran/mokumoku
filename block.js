@@ -75,10 +75,10 @@ exports.START_MODAL = {
     ]
 };
 
-exports.FINISH_BUTTON = {
+exports.ALERT_BUTTON_FIELD = {
     text: '作業を終了しますか？',
     fallback: '終了報告または延長に失敗しました。作業が既に終了しているかもしれません',
-    callback_id: 'finish_button',
+    callback_id: 'alert_button',
     color: '#3AA3E3',
     attachment_type: 'default',
     actions: [

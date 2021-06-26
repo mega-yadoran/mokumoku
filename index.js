@@ -117,9 +117,17 @@ app.view('end', async ({ ack, body, client }) => {
     }
 });
 
-app.action({ callback_id: 'finish_button' }, async ({ ack, body, client }) => {
+// アラートメッセージから作業終了or延長ボタンが押された場合の処理
+app.action({ callback_id: 'alert_button' }, async ({ ack, body, client }) => {
     const userId = body.user.id;
     const action = body.actions[0].value;
+
+    // 作業終了後に押された場合、ユーザーにメッセージを送信して終了
+    const isWorking = await store.isWorking(userId);
+    if (!isWorking) {
+        await ack({ text: '既に作業が終了しているようです' });
+        return;
+    }
 
     switch (action) {
         case 'finish':
