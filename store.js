@@ -30,7 +30,8 @@ exports.startWork = async (userId, goal, estimatedEndTime) => {
         start_time: getCurrentTime(),
         estimated_end_time: formatEstimatedEndTime(estimatedEndTime),
         estimated_end_timestamp: formatEstimatedEndTime(estimatedEndTime, true),
-        real_end_time: null
+        real_end_time: null,
+        is_alerted: false
     }).catch((err) => {
         console.error(err);
         throw err;
@@ -50,8 +51,10 @@ exports.extendWorkTime = async (userId, minutes) => {
     const newEstimatedEndTime = dayjs(estimatedEndTime, 'YYYY-MM-DD HH:mm:ss').add(minutes, 'minutes');
     await workRef.update({
         estimated_end_time: newEstimatedEndTime.format('YYYY-MM-DD HH:mm:ss'),
-        estimated_end_timestamp: newEstimatedEndTime.unix()
+        estimated_end_timestamp: newEstimatedEndTime.unix(),
+        is_alerted: false
     });
+    return newEstimatedEndTime.format('HH:mm');
 }
 
 exports.getCurrentWorkSnapshot = async (userId) => {
@@ -62,7 +65,24 @@ exports.getCurrentWorkSnapshot = async (userId) => {
         .get();
 };
 
-exports.getUnreportedWorks = async (minutes, finishFlag = false) => {
+exports.getUnAlertedWorks = async (minutes) => {
+    const snapshot = await admin.firestore().collection('works')
+        .where('real_end_time', '==', null)
+        .where('is_alerted', '==', false)
+        .where('estimated_end_timestamp', '<', dayjs().subtract(minutes, 'minutes').unix())
+        .get();
+    const result = [];
+
+    snapshot.forEach(async doc => {
+        result.push(doc.data());
+
+        // アラート発砲済として記録
+        await doc.ref.update({ is_alerted: true });
+    });
+    return result;
+}
+
+exports.getAndFinishUnreportedWorks = async (minutes) => {
     const snapshot = await admin.firestore().collection('works')
         .where('real_end_time', '==', null)
         .where('estimated_end_timestamp', '<', dayjs().subtract(minutes, 'minutes').unix())
@@ -72,10 +92,8 @@ exports.getUnreportedWorks = async (minutes, finishFlag = false) => {
     snapshot.forEach(async doc => {
         result.push(doc.data());
 
-        // 終了フラグがtrueの場合、終了時刻＝開始時刻として記録
-        if (finishFlag) {
-            await doc.ref.update({ real_end_time: doc.data().start_time });
-        }
+        // 終了時刻＝開始時刻として記録
+        await doc.ref.update({ real_end_time: doc.data().start_time });
     });
     return result;
 }

@@ -94,5 +94,17 @@ exports.ALERT_BUTTON_FIELD = {
             type: 'button',
             value: 'extend-one-hour'
         },
+        {
+            name: 'work',
+            text: '2時間延長する',
+            type: 'button',
+            value: 'extend-two-hour'
+        },
+        {
+            name: 'work',
+            text: '3時間延長する',
+            type: 'button',
+            value: 'extend-three-hour'
+        },
     ]
 };
