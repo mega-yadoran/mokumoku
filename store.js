@@ -4,18 +4,15 @@ const serviceAccount = require('./serviceAccountKey.json');
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount)
 });
+// const log = require('./log');
 
-const getCurrentTime = () => {
-    return dayjs().format('YYYY-MM-DD HH:mm:ss');
-}
-
-const formatEstimatedEndTime = (estimatedEndTime, isTimestamp = false) => {
+const formatEstimatedEndTime = (estimatedEndTime) => {
     const split = estimatedEndTime.split(':')
     const tmp = dayjs().hour(split[0]).minute(split[1]).second(0);
     const result = dayjs().diff(tmp) < 0
         ? tmp
         : tmp.add(1, 'd');
-    return isTimestamp ? result.unix() : result.format('YYYY-MM-DD HH:mm:ss');
+    return result.toDate();
 }
 
 exports.isWorking = async (userId) => {
@@ -27,10 +24,10 @@ exports.startWork = async (userId, goal, estimatedEndTime) => {
     await admin.firestore().collection('works').add({
         user_id: userId,
         goal: goal,
-        start_time: getCurrentTime(),
+        start_time: new Date(),
         estimated_end_time: formatEstimatedEndTime(estimatedEndTime),
-        estimated_end_timestamp: formatEstimatedEndTime(estimatedEndTime, true),
         real_end_time: null,
+        length_minutes: null,
         is_alerted: false
     }).catch((err) => {
         console.error(err);
@@ -40,20 +37,28 @@ exports.startWork = async (userId, goal, estimatedEndTime) => {
 
 exports.endWork = async (userId) => {
     const snapshot = await this.getCurrentWorkSnapshot(userId);
-    const workRef = snapshot.docs[0].ref;
-    await workRef.update({ real_end_time: getCurrentTime() });
+    const doc = snapshot.docs[0];
+    await this.recordEndTime(doc);
+}
+
+exports.recordEndTime = async (doc, endDate = new Date()) => {
+    await doc.ref.update({ real_end_time: endDate });
+    const startTime = dayjs(doc.data().start_time.toDate());
+    const endTime = dayjs(endDate);
+    const length = endTime.diff(startTime, 'minute');
+    await doc.ref.update({ length_minutes: length });
 }
 
 exports.extendWorkTime = async (userId, minutes) => {
     const snapshot = await this.getCurrentWorkSnapshot(userId);
     const workRef = snapshot.docs[0].ref;
     const estimatedEndTime = snapshot.docs[0].data().estimated_end_time;
-    const newEstimatedEndTime = dayjs(estimatedEndTime, 'YYYY-MM-DD HH:mm:ss').add(minutes, 'minutes');
+    const newEstimatedEndTime = dayjs(estimatedEndTime).add(minutes, 'minutes');
     await workRef.update({
-        estimated_end_time: newEstimatedEndTime.format('YYYY-MM-DD HH:mm:ss'),
-        estimated_end_timestamp: newEstimatedEndTime.unix(),
+        estimated_end_time: newEstimatedEndTime.toDate(),
         is_alerted: false
     });
+
     return newEstimatedEndTime.format('HH:mm');
 }
 
@@ -69,11 +74,11 @@ exports.getUnAlertedWorks = async (minutes) => {
     const snapshot = await admin.firestore().collection('works')
         .where('real_end_time', '==', null)
         .where('is_alerted', '==', false)
-        .where('estimated_end_timestamp', '<', dayjs().subtract(minutes, 'minutes').unix())
+        .where('estimated_end_time', '<', dayjs().subtract(minutes, 'minutes').toDate())
         .get();
     const result = [];
 
-    snapshot.forEach(async doc => {
+    snapshot.docs.map(async doc => {
         result.push(doc.data());
 
         // アラート発砲済として記録
@@ -85,15 +90,16 @@ exports.getUnAlertedWorks = async (minutes) => {
 exports.getAndFinishUnreportedWorks = async (minutes) => {
     const snapshot = await admin.firestore().collection('works')
         .where('real_end_time', '==', null)
-        .where('estimated_end_timestamp', '<', dayjs().subtract(minutes, 'minutes').unix())
+        .where('estimated_end_time', '<', dayjs().subtract(minutes, 'minutes').toDate())
         .get();
     const result = [];
 
-    snapshot.forEach(async doc => {
+    snapshot.docs.map(async doc => {
         result.push(doc.data());
 
         // 終了時刻＝開始時刻として記録
-        await doc.ref.update({ real_end_time: doc.data().start_time });
+        const endTime = doc.data().start_time.toDate();
+        await this.recordEndTime(doc, endTime);
     });
     return result;
 }

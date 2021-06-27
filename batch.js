@@ -3,7 +3,6 @@ const { App } = require('@slack/bolt');
 const store = require('./store');
 const block = require('./block');
 const log = require('./log');
-const logger = log.getLogger();
 
 // Slackアプリ設定
 const app = new App({
@@ -30,11 +29,13 @@ const postChat = async (client, message, userId, attachments = null) => {
 };
 
 (async () => {
+    const logger = log.getLogger('batch', 'info');
+    logger.info('batch スタート');
 
     try {
         // 終了未報告の作業を作業時間0で終了してユーザーにメッセージを送る
         const worksForFinish = await store.getAndFinishUnreportedWorks(60);
-        worksForFinish.forEach(async work => {
+        worksForFinish.map(async work => {
             // ユーザーに対してメッセージを送信する
             const msg = `<@${work.user_id}> 作業終了予定時間から1時間が経過したため、作業時間0として記録しました。\n`
                 + '(正しい時間を再記録したい場合は管理者に問い合わせてください)';
@@ -49,7 +50,7 @@ const postChat = async (client, message, userId, attachments = null) => {
     try {
         // 終了未報告のユーザーにアラートを送る
         const worksForAlert = await store.getUnAlertedWorks(30);
-        worksForAlert.forEach(async work => {
+        worksForAlert.map(async work => {
             // ユーザーに対してメッセージを送信する
             const msg = `<@${work.user_id}> 作業終了予定時間から30分たちました。既に作業を終了している場合は終了報告をしてください。\n`
                 + '1時間経過するまでに終了報告がなければ作業時間0として記録されます。';
