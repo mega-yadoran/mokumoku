@@ -4,6 +4,7 @@ const serviceAccount = require('./serviceAccountKey.json');
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount)
 });
+const db = admin.firestore();
 // const log = require('./log');
 
 const formatEstimatedEndTime = (estimatedEndTime) => {
@@ -21,7 +22,7 @@ exports.isWorking = async (userId) => {
 };
 
 exports.startWork = async (userId, goal, estimatedEndTime) => {
-    await admin.firestore().collection('works').add({
+    await db.collection('works').add({
         user_id: userId,
         goal: goal,
         start_time: new Date(),
@@ -63,7 +64,7 @@ exports.extendWorkTime = async (userId, minutes) => {
 }
 
 exports.getCurrentWorkSnapshot = async (userId) => {
-    return admin.firestore().collection('works')
+    return db.collection('works')
         .where('user_id', '==', userId)
         .where('real_end_time', '==', null)
         .limit(1)
@@ -71,7 +72,7 @@ exports.getCurrentWorkSnapshot = async (userId) => {
 };
 
 exports.getUnAlertedWorks = async (minutes) => {
-    const snapshot = await admin.firestore().collection('works')
+    const snapshot = await db.collection('works')
         .where('real_end_time', '==', null)
         .where('is_alerted', '==', false)
         .where('estimated_end_time', '<', dayjs().subtract(minutes, 'minutes').toDate())
@@ -88,7 +89,7 @@ exports.getUnAlertedWorks = async (minutes) => {
 }
 
 exports.getAndFinishUnreportedWorks = async (minutes) => {
-    const snapshot = await admin.firestore().collection('works')
+    const snapshot = await db.collection('works')
         .where('real_end_time', '==', null)
         .where('estimated_end_time', '<', dayjs().subtract(minutes, 'minutes').toDate())
         .get();
@@ -103,3 +104,28 @@ exports.getAndFinishUnreportedWorks = async (minutes) => {
     });
     return result;
 }
+
+exports.getSummary = async (userId) => {
+    const snapshot = await db.collection("works")
+        .where('user_id', '==', userId)
+        .get();
+    const sumAmount = snapshot.docs
+        .map(doc => doc.data().length_minutes)
+        .reduce((prev, current) => prev + current, 0);
+
+    const sum30Days = snapshot.docs
+        .filter(doc => dayjs(doc.data().start_time.toDate()).isAfter(dayjs().subtract(30, 'day')))
+        .map(doc => doc.data().length_minutes)
+        .reduce((prev, current) => prev + current, 0);
+
+    const docOfLongest30Days = snapshot.docs
+        .filter(doc => dayjs(doc.data().start_time.toDate()).isAfter(dayjs().subtract(30, 'day')))
+        .reduce((prev, current) => prev.length_minutes > current.length_minutes ? prev : current);
+
+    return {
+        sumAmount: sumAmount,
+        sum30Days: sum30Days,
+        dateOfLongest30Days: docOfLongest30Days.data().start_time.toDate(),
+        longest30Days: docOfLongest30Days.data().length_minutes
+    };
+};
