@@ -120,13 +120,14 @@ exports.getSummary = async (userId) => {
 
     const docOfLongest30Days = snapshot.docs
         .filter(doc => dayjs(doc.data().start_time.toDate()).isAfter(dayjs().subtract(30, 'day')))
+        .map(doc => doc.data())
         .reduce((prev, current) => prev.length_minutes > current.length_minutes ? prev : current);
 
     return {
         sumAmount: sumAmount,
         sum30Days: sum30Days,
-        dateOfLongest30Days: docOfLongest30Days.data().start_time.toDate(),
-        longest30Days: docOfLongest30Days.data().length_minutes
+        dateOfLongest30Days: docOfLongest30Days.start_time.toDate(),
+        longest30Days: docOfLongest30Days.length_minutes
     };
 };
 
