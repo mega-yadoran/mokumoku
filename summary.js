@@ -14,7 +14,7 @@ const judgeRank = (sumAmount, sum30Days) => {
         return { label: 'むしとりしょうねん', comment: 'さぎょう って たのしい！', image: '02.png' };
     if (sum30Days < 1800)
         return { label: 'エリートトレーナー', comment: 'トンネル ぬければ もくもくリーグ！', image: '03.png' };
-    if (sumAmount < 6000 || sum30Days < 3600)
+    if (sumAmount < 18000 || sum30Days < 3600)
         return { label: 'ジムリーダー', comment: 'よくきたな ここは もくもくジム', image: '04.png' };
     if (sumAmount < 60000)
         return { label: 'チャンピオン', comment: 'けっきょく ぼくが いちばん つよくて すごいんだよね', image: '05.png' };
