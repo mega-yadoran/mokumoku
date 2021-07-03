@@ -108,6 +108,7 @@ exports.getAndFinishUnreportedWorks = async (minutes) => {
 exports.getSummary = async (userId) => {
     const snapshot = await db.collection("works")
         .where('user_id', '==', userId)
+        .orderBy('start_time', 'desc')
         .get();
     const sumAmount = snapshot.docs
         .map(doc => doc.data().length_minutes)
@@ -123,11 +124,17 @@ exports.getSummary = async (userId) => {
         .map(doc => doc.data())
         .reduce((prev, current) => prev.length_minutes > current.length_minutes ? prev : current);
 
+    const today = dayjs().add(1, 'day').hour(0).minute(0).second(0);
+    const workingDaysIndex = snapshot.docs
+        .filter(doc => dayjs(doc.data().start_time.toDate()).isAfter(dayjs().subtract(50, 'day')))
+        .map(doc => today.diff(dayjs(doc.data().start_time.toDate()), 'day'));
+
     return {
         sumAmount: sumAmount,
         sum30Days: sum30Days,
         dateOfLongest30Days: docOfLongest30Days.start_time.toDate(),
-        longest30Days: docOfLongest30Days.length_minutes
+        longest30Days: docOfLongest30Days.length_minutes,
+        workingDaysIndex: Array.from(new Set(workingDaysIndex)) // 重複を取り除く
     };
 };
 

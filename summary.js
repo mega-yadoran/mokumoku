@@ -21,6 +21,31 @@ const judgeRank = (sumAmount, sum30Days) => {
     return { label: 'アルセウス', comment: 'このよを つくりし かみ', image: '06.png' };
 }
 
+const generateActivityBlock = (workingDaysIndex) => {
+    const emoji = { on: ':large_green_square: ', off: ':white_square: ', x: ':black_small_square: ' }
+    const calendar = [];
+    // 未来日をXとする
+    for (i = 6; i > 0; i--) {
+        if (dayjs().day() === i) break;
+        calendar.unshift(emoji.x);
+    }
+    // 作業した日をon, していない日をoffとする
+    for (j = 0; j < 43 + i; j++) {
+        calendar.unshift(workingDaysIndex.includes(j) ? emoji.on : emoji.off);
+    }
+    // mrkdwn形式に変換
+    const dayOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    let result = '';
+    for (day = 0; day < 7; day++) {
+        for (week = 0; week < 7; week++) {
+            result += calendar[week * 7 + day];
+        }
+        result += dayOfWeek[day];
+        result += '\n';
+    }
+    return result;
+}
+
 exports.getSummaryBlocks = async (userId) => {
     const summary = await store.getSummary(userId);
 
@@ -29,6 +54,7 @@ exports.getSummaryBlocks = async (userId) => {
     const dateOfLongest30Days = dayjs(summary.dateOfLongest30Days).format('YYYY/MM/DD');
     const longest30Days = formatMinuteToHour(summary.longest30Days);
     const rank = judgeRank(summary.sumAmount, summary.sum30Days);
+    const activity = generateActivityBlock(summary.workingDaysIndex);
 
     const blocks = [
         {
@@ -74,7 +100,7 @@ exports.getSummaryBlocks = async (userId) => {
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": " (直近7週間の作業) :arrow_right: :new: \n\n:large_green_square: :white_square: :large_green_square: :white_square: :white_square: :large_green_square: :large_green_square: Sun \n:large_green_square: :large_green_square: :large_green_square: :white_square: :large_green_square: :white_square: :white_square: Mon \n:white_square: :white_square: :large_green_square: :large_green_square: :large_green_square: :white_square: :white_square: Tue \n:large_green_square: :white_square: :large_green_square: :white_square: :white_square: :large_green_square: :large_green_square: Wed \n:large_green_square: :large_green_square: :large_green_square: :white_square: :large_green_square: :white_square: :white_square: Thu \n:white_square: :white_square: :large_green_square: :large_green_square: :large_green_square: :white_square: :white_square: Fri \n:large_green_square: :large_green_square: :large_green_square: :white_square: :large_green_square: :large_green_square: :white_square: Sat \n"
+                "text": ` (直近7週間の作業) :arrow_right: :new: \n\n${activity}`
             }
         },
         {
