@@ -7,20 +7,35 @@ const formatMinuteToHour = (minutes) => {
     return hours > 0 ? `${hours}時間 ${modMinutes}分` : `${minutes}分`;
 };
 
+const judgeRank = (sumAmount, sum30Days) => {
+    if (sumAmount == 0)
+        return { label: 'マサラタウン', comment: 'マサラは まっしろ はじまりのいろ' };
+    if (sum30Days < 600)
+        return { label: 'むしとりしょうねん', comment: 'さぎょう って たのしい！' };
+    if (sum30Days < 1800)
+        return { label: 'エリートトレーナー', comment: 'トンネル ぬければ もくもくリーグ！' };
+    if (sumAmount < 6000 || sum30Days < 3600)
+        return { label: 'ジムリーダー', comment: 'よくきたな ここは もくもくジム' };
+    if (sumAmount < 60000)
+        return { label: 'チャンピオン', comment: 'けっきょく ぼくが いちばん つよくて すごいんだよね' };
+    return { label: 'アルセウス', comment: 'このよを つくりし かみ' };
+}
+
 exports.getSummaryBlocks = async (userId) => {
     const summary = await store.getSummary(userId);
+
     const sumAmount = formatMinuteToHour(summary.sumAmount);
     const sum30Days = formatMinuteToHour(summary.sum30Days);
     const dateOfLongest30Days = dayjs(summary.dateOfLongest30Days).format('YYYY/MM/DD');
     const longest30Days = formatMinuteToHour(summary.longest30Days);
-    const rank = 'マサラタウン';
+    const rank = judgeRank(summary.sumAmount, summary.sum30Days);
 
     const blocks = [
         {
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": "* <@y_tanaka> さんの作業実績*\n\n_マサラは まっしろ はじまりのいろ_"
+                "text": `* <@y_tanaka> さんの作業実績*\n\n_${rank.comment}_`
             }
         },
         {
@@ -40,7 +55,7 @@ exports.getSummaryBlocks = async (userId) => {
                 },
                 {
                     "type": "mrkdwn",
-                    "text": `*ランク:*\n${rank}級`
+                    "text": `*ランク:*\n${rank.label}`
                 },
                 {
                     "type": "mrkdwn",
