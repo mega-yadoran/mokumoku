@@ -129,3 +129,13 @@ exports.getSummary = async (userId) => {
         longest30Days: docOfLongest30Days.data().length_minutes
     };
 };
+
+// work配列データをまとめて追加 (開発用)
+exports.insertWorks = async (works) => {
+    const batch = db.batch();
+    works.forEach((doc) => {
+        var docRef = db.collection("works").doc();
+        batch.set(docRef, doc);
+    });
+    await batch.commit();
+};
