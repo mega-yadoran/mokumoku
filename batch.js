@@ -15,7 +15,7 @@ const postChat = async (client, message, userId, attachments = null) => {
     const logger = log.getLogger();
     try {
         const body = {
-            channel: process.env.TARGET_CHANNEL_ID,
+            channel: process.env.SLACK_TARGET_CHANNEL_ID,
             text: message,
             user: userId
         };

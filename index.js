@@ -17,7 +17,7 @@ const app = new App({
 const postChat = async (client, message, userId = null, attachments = null) => {
     try {
         const body = {
-            channel: process.env.TARGET_CHANNEL_ID,
+            channel: process.env.SLACK_TARGET_CHANNEL_ID,
             text: message
         };
         if (attachments) {
@@ -41,7 +41,7 @@ const postChat = async (client, message, userId = null, attachments = null) => {
 const postBlock = async (client, blocks, userId = null) => {
     try {
         const body = {
-            channel: process.env.TARGET_CHANNEL_ID,
+            channel: process.env.SLACK_TARGET_CHANNEL_ID,
             blocks: blocks
         };
         if (userId) {
