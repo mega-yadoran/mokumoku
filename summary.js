@@ -9,16 +9,16 @@ const formatMinuteToHour = (minutes) => {
 
 const judgeRank = (sumAmount, sum30Days) => {
     if (sumAmount == 0)
-        return { label: 'マサラタウン', comment: 'マサラは まっしろ はじまりのいろ' };
+        return { label: 'マサラタウン', comment: 'マサラは まっしろ はじまりのいろ', image: '01.png' };
     if (sum30Days < 600)
-        return { label: 'むしとりしょうねん', comment: 'さぎょう って たのしい！' };
+        return { label: 'むしとりしょうねん', comment: 'さぎょう って たのしい！', image: '02.png' };
     if (sum30Days < 1800)
-        return { label: 'エリートトレーナー', comment: 'トンネル ぬければ もくもくリーグ！' };
+        return { label: 'エリートトレーナー', comment: 'トンネル ぬければ もくもくリーグ！', image: '03.png' };
     if (sumAmount < 6000 || sum30Days < 3600)
-        return { label: 'ジムリーダー', comment: 'よくきたな ここは もくもくジム' };
+        return { label: 'ジムリーダー', comment: 'よくきたな ここは もくもくジム', image: '04.png' };
     if (sumAmount < 60000)
-        return { label: 'チャンピオン', comment: 'けっきょく ぼくが いちばん つよくて すごいんだよね' };
-    return { label: 'アルセウス', comment: 'このよを つくりし かみ' };
+        return { label: 'チャンピオン', comment: 'けっきょく ぼくが いちばん つよくて すごいんだよね', image: '05.png' };
+    return { label: 'アルセウス', comment: 'このよを つくりし かみ', image: '06.png' };
 }
 
 exports.getSummaryBlocks = async (userId) => {
@@ -45,8 +45,8 @@ exports.getSummaryBlocks = async (userId) => {
             "type": "section",
             "accessory": {
                 "type": "image",
-                "image_url": "https://pbs.twimg.com/profile_images/625633822235693056/lNGUneLX_400x400.jpg",
-                "alt_text": "cute cat"
+                "image_url": `${process.env.RANK_IMAGE_BASE_PATH}/${rank.image}`,
+                "alt_text": rank.label
             },
             "fields": [
                 {
