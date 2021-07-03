@@ -36,4 +36,8 @@ const works = (() => {
     return works;
 })();
 
-store.insertWorks(works);
+// テストデータ挿入
+// store.insertWorks(works);
+
+// works データ一括削除
+// store.deleteAllWorks(userId)

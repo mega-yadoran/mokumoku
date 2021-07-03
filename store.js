@@ -148,3 +148,17 @@ exports.insertWorks = async (works) => {
     });
     await batch.commit();
 };
+
+// work配列データを全削除(開発用)
+exports.deleteAllWorks = async (userId) => {
+    const batch = db.batch();
+    const snapshot = await db.collection("works")
+        .where('user_id', '==', userId)
+        .get();
+
+    snapshot.docs.map(doc => {
+        batch.delete(doc.ref);
+    });
+
+    await batch.commit();
+};
