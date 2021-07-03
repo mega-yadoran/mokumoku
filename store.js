@@ -53,7 +53,7 @@ exports.recordEndTime = async (doc, endDate = new Date()) => {
 exports.extendWorkTime = async (userId, minutes) => {
     const snapshot = await this.getCurrentWorkSnapshot(userId);
     const workRef = snapshot.docs[0].ref;
-    const estimatedEndTime = snapshot.docs[0].data().estimated_end_time;
+    const estimatedEndTime = snapshot.docs[0].data().estimated_end_time.toDate();
     const newEstimatedEndTime = dayjs(estimatedEndTime).add(minutes, 'minutes');
     await workRef.update({
         estimated_end_time: newEstimatedEndTime.toDate(),
