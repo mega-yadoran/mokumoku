@@ -29,7 +29,7 @@ const postChat = async (client, message, userId, attachments = null) => {
 };
 
 (async () => {
-    const logger = log.getLogger('batch', 'info');
+    const logger = log.getLogger('info', 'batch');
     logger.info('batch スタート');
 
     try {
