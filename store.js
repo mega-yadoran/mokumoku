@@ -114,15 +114,16 @@ exports.getSummary = async (userId) => {
         .map(doc => doc.data().length_minutes)
         .reduce((prev, current) => prev + current, 0);
 
-    const sum30Days = snapshot.docs
-        .filter(doc => dayjs(doc.data().start_time.toDate()).isAfter(dayjs().subtract(30, 'day')))
-        .map(doc => doc.data().length_minutes)
+    const works30Days = snapshot.docs
+        .filter(doc => dayjs(doc.data().start_time.toDate()).isAfter(dayjs().subtract(30, 'day')));
+
+    const sum30Days = works30Days.map(doc => doc.data().length_minutes)
         .reduce((prev, current) => prev + current, 0);
 
-    const docOfLongest30Days = snapshot.docs
-        .filter(doc => dayjs(doc.data().start_time.toDate()).isAfter(dayjs().subtract(30, 'day')))
-        .map(doc => doc.data())
-        .reduce((prev, current) => prev.length_minutes > current.length_minutes ? prev : current);
+    const docOfLongest30Days = works30Days.length === 0
+        ? null
+        : works30Days.map(doc => doc.data())
+            .reduce((prev, current) => prev.length_minutes > current.length_minutes ? prev : current);
 
     const today = dayjs().add(1, 'day').hour(0).minute(0).second(0);
     const workingDaysIndex = snapshot.docs
@@ -132,8 +133,8 @@ exports.getSummary = async (userId) => {
     return {
         sumAmount: sumAmount,
         sum30Days: sum30Days,
-        dateOfLongest30Days: docOfLongest30Days.start_time.toDate(),
-        longest30Days: docOfLongest30Days.length_minutes,
+        dateOfLongest30Days: docOfLongest30Days ? docOfLongest30Days.start_time.toDate() : null,
+        longest30Days: docOfLongest30Days ? docOfLongest30Days.length_minutes : null,
         workingDaysIndex: Array.from(new Set(workingDaysIndex)) // 重複を取り除く
     };
 };

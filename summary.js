@@ -21,6 +21,13 @@ const judgeRank = (sumAmount, sum30Days) => {
     return { label: 'アルセウス', comment: 'このよを つくりし かみ', image: '06.png' };
 }
 
+const generateDateOfLongest30DaysText = (dateOfLongest30Days, longest30Days) => {
+    if (dateOfLongest30Days === null || longest30Days === null) {
+        return '作業をしていないようです'
+    }
+    return `${dayjs(dateOfLongest30Days).format('YYYY/MM/DD')} (${formatMinuteToHour(longest30Days)})`;
+}
+
 const generateActivityBlock = (workingDaysIndex) => {
     const emoji = { on: ':large_green_square: ', off: ':white_square: ', x: ':black_small_square: ' }
     const calendar = [];
@@ -51,8 +58,10 @@ exports.getSummaryBlocks = async (userId) => {
 
     const sumAmount = formatMinuteToHour(summary.sumAmount);
     const sum30Days = formatMinuteToHour(summary.sum30Days);
-    const dateOfLongest30Days = dayjs(summary.dateOfLongest30Days).format('YYYY/MM/DD');
-    const longest30Days = formatMinuteToHour(summary.longest30Days);
+    const dateOfLongest30Days = generateDateOfLongest30DaysText(
+        summary.dateOfLongest30Days,
+        summary.longest30Days
+    );
     const rank = judgeRank(summary.sumAmount, summary.sum30Days);
     const activity = generateActivityBlock(summary.workingDaysIndex);
 
@@ -89,7 +98,7 @@ exports.getSummaryBlocks = async (userId) => {
                 },
                 {
                     "type": "mrkdwn",
-                    "text": `*直近30日で最も作業をした日:*\n${dateOfLongest30Days} (${longest30Days})`
+                    "text": `*直近30日で最も作業をした日:*\n${dateOfLongest30Days}`
                 }
             ]
         },
