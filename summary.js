@@ -58,10 +58,8 @@ exports.getSummaryBlocks = async (userId) => {
 
     const sumAmount = formatMinuteToHour(summary.sumAmount);
     const sum30Days = formatMinuteToHour(summary.sum30Days);
-    const dateOfLongest30Days = generateDateOfLongest30DaysText(
-        summary.dateOfLongest30Days,
-        summary.longest30Days
-    );
+    const dateOfLongest30Days = summary.dateOfLongest30Days;
+    const longest30Days = formatMinuteToHour(summary.longest30Days);
     const rank = judgeRank(summary.sumAmount, summary.sum30Days);
     const activity = generateActivityBlock(summary.workingDaysIndex);
 
@@ -98,7 +96,7 @@ exports.getSummaryBlocks = async (userId) => {
                 },
                 {
                     "type": "mrkdwn",
-                    "text": `*直近30日で最も作業をした日:*\n${dateOfLongest30Days}`
+                    "text": `*直近30日で最も作業をした日:*\n${dateOfLongest30Days} (${longest30Days})`
                 }
             ]
         },

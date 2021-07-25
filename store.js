@@ -120,10 +120,9 @@ exports.getSummary = async (userId) => {
     const sum30Days = works30Days.map(doc => doc.data().length_minutes)
         .reduce((prev, current) => prev + current, 0);
 
-    const docOfLongest30Days = works30Days.length === 0
+    const longest30Days = works30Days.length === 0
         ? null
-        : works30Days.map(doc => doc.data())
-            .reduce((prev, current) => prev.length_minutes > current.length_minutes ? prev : current);
+        : getLongestWorkOfDays(works30Days);
 
     const today = dayjs().add(1, 'day').hour(0).minute(0).second(0);
     const workingDaysIndex = snapshot.docs
@@ -133,11 +132,33 @@ exports.getSummary = async (userId) => {
     return {
         sumAmount: sumAmount,
         sum30Days: sum30Days,
-        dateOfLongest30Days: docOfLongest30Days ? docOfLongest30Days.start_time.toDate() : null,
-        longest30Days: docOfLongest30Days ? docOfLongest30Days.length_minutes : null,
+        dateOfLongest30Days: longest30Days ? longest30Days.date : null,
+        longest30Days: longest30Days ? longest30Days.time : null,
         workingDaysIndex: Array.from(new Set(workingDaysIndex)) // 重複を取り除く
     };
 };
+
+const getLongestWorkOfDays = (works) => {
+    const timeByDay = {};
+    works.map(doc => {
+        const work = doc.data();
+        const date = dayjs(work.start_time.toDate()).format('YYYY/MM/DD');
+        if (work.length_minutes > 0) {
+            if (date in timeByDay) {
+                timeByDay[date] += work.length_minutes;
+            } else {
+                timeByDay[date] = work.length_minutes;
+            }
+        }
+    });
+    const longestDate = Object.keys(timeByDay).reduce(
+        (prevDate, currentDate) => timeByDay[prevDate] > timeByDay[currentDate] ? prevDate : currentDate
+    );
+    return {
+        date: longestDate,
+        time: timeByDay[longestDate]
+    };
+}
 
 // work配列データをまとめて追加 (開発用)
 exports.insertWorks = async (works) => {
