@@ -38,10 +38,10 @@ exports.getHaltedWork = async (userId) => {
 }
 
 exports.startWork = async (userId, goal, estimatedEndTime) => {
-    if (isHalted(userId)) {
+    if (await this.isHalted(userId)) {
         // 作業中断中に別の作業を開始する場合は作業中断中フラグをfalseに
         const snapshot = await this.getHaltedWorkSnapshot(userId);
-        await snapshot.doc[0].ref.update({ isHalted: false });
+        await snapshot.docs[0].ref.update({ is_halted: false });
     }
 
     await db.collection('works').add({
