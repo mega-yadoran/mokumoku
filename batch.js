@@ -49,10 +49,10 @@ const postChat = async (client, message, userId, attachments = null) => {
 
     try {
         // 終了未報告のユーザーにアラートを送る
-        const worksForAlert = await store.getUnAlertedWorks(30);
+        const worksForAlert = await store.getUnAlertedWorks(0);
         worksForAlert.map(async work => {
             // ユーザーに対してメッセージを送信する
-            const msg = `<@${work.user_id}> 作業終了予定時間から30分たちました。既に作業を終了している場合は終了報告をしてください。\n`
+            const msg = `<@${work.user_id}> 作業終了予定時間になりました。既に作業を終了している場合は終了報告をしてください。\n`
                 + '1時間経過するまでに終了報告がなければ作業時間0として記録されます。';
 
             await postChat(app.client, msg, work.user_id, block.ALERT_BUTTON_FIELD);
