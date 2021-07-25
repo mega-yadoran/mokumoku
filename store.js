@@ -21,7 +21,29 @@ exports.isWorking = async (userId) => {
     return !snapshot.empty;
 };
 
+exports.isHalted = async (userId) => {
+    const snapshot = await this.getHaltedWorkSnapshot(userId);
+    return !snapshot.empty;
+};
+
+exports.getHaltedWork = async (userId) => {
+    const snapshot = await this.getHaltedWorkSnapshot(userId);
+    const goal = snapshot.docs[0].data().goal;
+    const estimatedEndTime = dayjs(snapshot.docs[0].data().estimated_end_time.toDate()).format('HH:mm');
+
+    return {
+        goal: goal,
+        estimatedEndTime: estimatedEndTime
+    };
+}
+
 exports.startWork = async (userId, goal, estimatedEndTime) => {
+    if (isHalted(userId)) {
+        // 作業中断中に別の作業を開始する場合は作業中断中フラグをfalseに
+        const snapshot = await this.getHaltedWorkSnapshot(userId);
+        await snapshot.doc[0].ref.update({ isHalted: false });
+    }
+
     await db.collection('works').add({
         user_id: userId,
         goal: goal,
@@ -29,12 +51,38 @@ exports.startWork = async (userId, goal, estimatedEndTime) => {
         estimated_end_time: formatEstimatedEndTime(estimatedEndTime),
         real_end_time: null,
         length_minutes: null,
-        is_alerted: false
-    }).catch((err) => {
-        console.error(err);
-        throw err;
-    })
+        is_alerted: false,
+        is_halted: false
+    });
 };
+
+exports.restartWork = async (userId) => {
+    // 作業中断フラグをfalseに
+    const snapshot = await this.getHaltedWorkSnapshot(userId);
+    await snapshot.docs[0].ref.update({ is_halted: false });
+
+    const goal = snapshot.docs[0].data().goal;
+    const estimatedEndTime = snapshot.docs[0].data().estimated_end_time;
+
+    await db.collection('works').add({
+        user_id: userId,
+        goal: goal,
+        start_time: new Date(),
+        estimated_end_time: estimatedEndTime,
+        real_end_time: null,
+        length_minutes: null,
+        is_alerted: false,
+        is_halted: false
+    });
+};
+
+exports.haltWork = async (userId) => {
+    const snapshot = await this.getCurrentWorkSnapshot(userId);
+    const doc = snapshot.docs[0];
+
+    await doc.ref.update({ is_halted: true });
+    await this.recordEndTime(doc);
+}
 
 exports.endWork = async (userId) => {
     const snapshot = await this.getCurrentWorkSnapshot(userId);
@@ -67,6 +115,15 @@ exports.getCurrentWorkSnapshot = async (userId) => {
     return db.collection('works')
         .where('user_id', '==', userId)
         .where('real_end_time', '==', null)
+        .limit(1)
+        .get();
+};
+
+exports.getHaltedWorkSnapshot = async (userId) => {
+    return db.collection('works')
+        .where('user_id', '==', userId)
+        .where('is_halted', '==', true)
+        .where('estimated_end_time', '>', dayjs().toDate())
         .limit(1)
         .get();
 };

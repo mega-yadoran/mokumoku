@@ -72,7 +72,7 @@ app.command('/mokumoku', async ({ ack, body, client }) => {
             await showHelp(client, userId);
             break;
         default:
-            await openStartOrEndModal(client, body.trigger_id, userId);
+            await openModal(client, body.trigger_id, userId);
             break;
     }
 });
@@ -82,7 +82,7 @@ const showHelp = async (client, userId) => {
     await postChat(client, message, userId);
 };
 
-const openStartOrEndModal = async (client, triggerId, userId) => {
+const openModal = async (client, triggerId, userId) => {
     try {
         // 作業しているかどうかを判定
         const isWorking = await store.isWorking(userId);
@@ -96,11 +96,27 @@ const openStartOrEndModal = async (client, triggerId, userId) => {
                     view: block.END_MODAL
                 });
             } else {
-                // 作業中でない場合、作業開始モーダルを開く
-                await client.views.open({
-                    trigger_id: triggerId,
-                    view: block.START_MODAL
-                });
+                // 作業中でない場合、作業中断中かどうかを判定
+                const isHalted = await store.isHalted(userId);
+
+                if (isHalted) {
+                    // 作業中断中の場合、作業再開モーダルを開く
+                    const haltedWork = await store.getHaltedWork(userId);
+                    await client.views.open({
+                        trigger_id: triggerId,
+                        view: block.RESTART_MODAL(
+                            haltedWork.goal,
+                            haltedWork.estimatedEndTime
+                        )
+                    });
+                } else {
+                    // 作業中断中でない場合、作業開始モーダルを開く
+                    await client.views.open({
+                        trigger_id: triggerId,
+                        view: block.START_MODAL
+                    });
+                }
+
             }
         } catch (error) {
             logger.error("モーダルのOPENに失敗しました");
@@ -134,6 +150,103 @@ app.view('start', async ({ ack, body, view, client }) => {
     }
 });
 
+// 作業開始モーダルの送信イベント
+app.view('restart', async ({ ack, body, client }) => {
+    logger = log.getLogger();
+    // モーダルでのデータ送信イベントを確認
+    await ack();
+    const userId = body.user.id;
+
+    try {
+        await store.restartWork(userId);
+
+        // ユーザーに対してメッセージを送信する
+        const message = `<@${userId}>さんが作業を再開しました。`;
+        await postChat(client, message);
+    } catch (error) {
+        logger.error("作業再開処理に失敗しました");
+        logger.error(error);
+    }
+});
+
+// 作業再開モーダルから作業開始モーダルへの切替イベント
+app.action('switch_start', async ({ ack, body, client }) => {
+    logger = log.getLogger();
+    // モーダルでのデータ送信イベントを確認
+    await ack();
+
+    try {
+        await client.views.update({
+            view_id: body.view.id,
+            hash: body.view.hash,
+            view: block.START_MODAL
+        });
+    } catch (error) {
+        logger.error("開始モーダルへの切替に失敗しました");
+        logger.error(error);
+    }
+});
+
+// 作業終了モーダルから作業中断モーダルへの切替イベント
+app.action('switch_halt', async ({ ack, body, client }) => {
+    logger = log.getLogger();
+    // モーダルでのデータ送信イベントを確認
+    await ack();
+
+    try {
+        await client.views.update({
+            view_id: body.view.id,
+            hash: body.view.hash,
+            view: block.HALT_MODAL
+        });
+    } catch (error) {
+        logger.error("中断モーダルへの切替に失敗しました");
+        logger.error(error);
+    }
+});
+
+// 作業中断モーダルから作業終了モーダルへの切替イベント
+app.action('switch_end', async ({ ack, body, client }) => {
+    logger = log.getLogger();
+    // モーダルでのデータ送信イベントを確認
+    await ack();
+
+    try {
+        await client.views.update({
+            view_id: body.view.id,
+            hash: body.view.hash,
+            view: block.END_MODAL
+        });
+    } catch (error) {
+        logger.error("中断モーダルへの切替に失敗しました");
+        logger.error(error);
+    }
+});
+
+// 作業中断モーダルの送信イベント
+app.view('halt', async ({ ack, body, client }) => {
+    logger = log.getLogger();
+    // モーダルでのデータ送信イベントを確認
+    await ack();
+
+    const userId = body.user.id;
+    await haltWork(client, userId);
+});
+
+// 作業終了処理
+const haltWork = async (client, userId) => {
+    try {
+        // 終了時間を書き込み
+        store.haltWork(userId);
+
+        // ユーザーに対してメッセージを送信する
+        const message = `<@${userId}>さんが作業を中断しました。`;
+        await postChat(client, message);
+    } catch (error) {
+        logger.error("作業中断処理に失敗しました");
+        logger.error(error);
+    }
+};
 
 // 作業終了モーダルの送信イベント
 app.view('end', async ({ ack, body, client }) => {
